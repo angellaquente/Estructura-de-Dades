@@ -137,13 +137,17 @@ class Gallery:
         if uuid is not None:
             self.images.append(uuid)
 
-    def remove_first_image(self) -> None:
+    def remove_first_image(self) -> str:
+        """Treu i retorna el UUID de la primera imatge (None si és buida)."""
         if self.images:
-            self.images.pop(0)
+            return self.images.pop(0)
+        return None
 
-    def remove_last_image(self) -> None:
+    def remove_last_image(self) -> str:
+        """Treu i retorna el UUID de l'última imatge (None si és buida)."""
         if self.images:
-            self.images.pop()
+            return self.images.pop()
+        return None
 
     def __len__(self) -> int:
         return len(self.images)
