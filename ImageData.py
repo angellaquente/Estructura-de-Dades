@@ -99,7 +99,8 @@ class ImageData:
     def load_metadata(self, uuid: str) -> None:
         """Llegeix (o torna a llegir) les metadades embegudes al PNG.
 
-        Si l'arxiu no es pot llegir, les metadades es queden com estaven.
+        Si l'arxiu no es pot llegir, tots els camps valen "None" i les
+        dimensions None.
         """
         entry = self._images.get(uuid)
         if entry is None:
@@ -108,6 +109,9 @@ class ImageData:
 
         metadata, dimensions = read_png_info(self.get_full_path(uuid))
         if metadata is None:
+            for field in FIELDS:
+                entry[field] = EMPTY
+            entry["dimensions"] = None
             return
         for field in FIELDS:
             value = metadata.get(field)
