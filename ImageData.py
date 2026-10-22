@@ -79,8 +79,15 @@ class ImageData:
         self._images = {}
 
     def add_image(self, uuid: str, file: str) -> None:
-        """Crea l'entrada de la imatge amb les metadades buides."""
+        """Crea l'entrada de la imatge amb les metadades buides.
+
+        Si la imatge ja existeix amb el mateix arxiu, es conserven les
+        metadades que ja s'han llegit.
+        """
         if uuid is None:
+            return
+        current = self._images.get(uuid)
+        if current is not None and current["file"] == file:
             return
         entry = {field: EMPTY for field in FIELDS}
         entry["file"] = file
@@ -92,13 +99,22 @@ class ImageData:
         self._images.pop(uuid, None)
 
     def load_metadata(self, uuid: str) -> None:
-        """Llegeix (o torna a llegir) les metadades embegudes al PNG."""
+        """Llegeix (o torna a llegir) les metadades embegudes al PNG.
+
+        Si l'arxiu ja no existeix al disc, la imatge s'elimina de la col·lecció.
+        """
         entry = self._images.get(uuid)
         if entry is None:
             print("ERROR: Imatge {} inexistent!".format(uuid))
             return
 
-        metadata, dimensions = read_png_info(self.get_full_path(uuid))
+        path = self.get_full_path(uuid)
+        if not os.path.isfile(path):
+            print("ERROR: Arxiu [{}] inexistent! S'elimina la imatge {}".format(entry["file"], uuid))
+            self.remove_image(uuid)
+            return
+
+        metadata, dimensions = read_png_info(path)
         for field in FIELDS:
             value = metadata.get(field)
             entry[field] = str(value) if value else EMPTY

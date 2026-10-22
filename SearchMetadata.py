@@ -55,11 +55,19 @@ Notes:
 """
 
 
+# Noms alternatius dels camps per a les cerques genèriques (vegeu __getattr__)
+FIELD_ALIASES = {"cfg": "cfg_scale", "created": "created_date", "file": "filename"}
+
+
 class SearchMetadata:
     """Cerques de subcadenes dins les metadades d'un ImageData."""
 
     def __init__(self, image_data=None):
         self._data = image_data     # ImageData on es fan les cerques
+
+    @property
+    def image_data(self):
+        return self._data
 
     def _search(self, field: str, sub) -> list:
         """UUID de les imatges amb 'sub' dins el camp (case-sensitive)."""
@@ -68,7 +76,17 @@ class SearchMetadata:
         sub = str(sub)
         getter = getattr(self._data, field)
         return [uuid for uuid in self._data.get_uuids()
-                if getter(uuid).find(sub) != -1]
+                if str(getter(uuid)).find(sub) != -1]
+
+    def __getattr__(self, name: str):
+        """Cerca per qualsevol altre camp d'ImageData: search.<camp>(sub) usa get_<camp>()."""
+        data = self.__dict__.get("_data")
+        if name.startswith("_") or data is None:
+            raise AttributeError(name)
+        getter = "get_" + FIELD_ALIASES.get(name, name)
+        if not hasattr(data, getter):
+            raise AttributeError(name)
+        return lambda sub: self._search(getter, sub)
 
     def prompt(self, sub: str) -> list:
         return self._search("get_prompt", sub)
