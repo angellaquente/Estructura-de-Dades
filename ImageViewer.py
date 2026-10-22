@@ -67,7 +67,7 @@ class ImageViewer:
             return
 
         width, height = data.get_dimensions(uuid)
-        print("Visualitzant [{}]".format(data.get_file(uuid)))
+        print("Visualitzant [{}]".format(data.get_filename(uuid)))
         print(" Dimensions: {}x{} pixels".format(width, height))
         print(" Prompt:     {}".format(data.get_prompt(uuid)))
         print(" Model:      {}".format(data.get_model(uuid)))
@@ -78,15 +78,17 @@ class ImageViewer:
         print(" Generated:  {}".format(data.get_generated(uuid)))
         print(" Created:    {}".format(data.get_created_date(uuid)))
         print(" UUID:       {}".format(uuid))
-        print(" Arxiu:      {}".format(data.get_file(uuid)))
+        print(" Arxiu:      {}".format(data.get_filename(uuid)))
 
-    def show_file(self, file: str) -> bool:
-        """Obre la imatge amb un visualitzador sense esperar que es tanqui.
+    def show_file(self, file: str) -> None:
+        """Obre la imatge amb un visualitzador sense esperar que es tanqui."""
+        self._open_file(file)
 
-        Retorna True si s'ha pogut obrir la imatge.
-        """
-        if file is None:
-            print("ERROR: Arxiu inexistent!")
+    @staticmethod
+    def _open_file(file: str) -> bool:
+        """Obre la imatge; retorna True si s'ha pogut obrir."""
+        if not isinstance(file, str) or file == "":
+            print("ERROR: Arxiu [{}] inexistent!".format(file if file is not None else ""))
             return False
         path = resolve_path(file)
         if not os.path.isfile(path):
@@ -126,9 +128,12 @@ class ImageViewer:
             self.print_image(uuid)
 
         if mode > 0:
-            file = self._data.get_file(uuid) if self._data is not None else None
-            if self.show_file(file):
+            file = self._data.get_filename(uuid) if self._data is not None else None
+            if self._open_file(file):
                 self._wait_user()
+
+    def __str__(self) -> str:
+        return "ImageViewer(mode per defecte {}, {})".format(cfg.DISPLAY_MODE, self._data)
 
     @staticmethod
     def _wait_user() -> None:

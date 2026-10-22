@@ -34,30 +34,35 @@ import cfg
 
 
 class ImageFiles:
-    """Representació a memòria dels arxius PNG presents al disc."""
+    """Representació a memòria dels arxius PNG presents al disc.
+
+    Cada arxiu s'identifica pel seu path relatiu a ROOT_DIR
+    (cfg.get_canonical_pathfile), però les llistes retornen el path tal com
+    s'ha trobat al disc (os.path.join del directori recorregut i el nom), de
+    manera que es pot obrir directament.
+    """
 
     def __init__(self):
-        self._files = set()     # paths relatius de la darrera lectura del disc
+        self._files = {}        # path relatiu a ROOT_DIR -> path trobat al disc
         self._added = []        # arxius nous respecte la lectura anterior
         self._removed = []      # arxius desapareguts respecte la lectura anterior
 
     def reload_fs(self, path: str = None) -> None:
         """Torna a llegir el disc a partir de 'path' i calcula els canvis."""
         if path is None:
-            path = cfg.get_root()
+            path = cfg.ROOT_DIR
 
-        found = []
+        found = {}
         for root, dirs, files in os.walk(path):
             dirs.sort()                     # recorregut determinista
             for filename in sorted(files):
                 if filename.lower().endswith('.png'):
-                    full_path = os.path.join(root, filename)
-                    found.append(cfg.get_canonical_pathfile(full_path))
+                    file = os.path.join(root, filename)
+                    found[cfg.get_canonical_pathfile(file)] = file
 
-        found_set = set(found)
-        self._added = [file for file in found if file not in self._files]
-        self._removed = sorted(self._files - found_set)
-        self._files = found_set
+        self._added = [file for key, file in found.items() if key not in self._files]
+        self._removed = [file for key, file in self._files.items() if key not in found]
+        self._files = found
 
     def files_added(self) -> list:
         """Arxius afegits des de la darrera crida a reload_fs()."""
@@ -69,7 +74,11 @@ class ImageFiles:
 
     def get_files(self) -> list:
         """Tots els arxius presents a la darrera lectura del disc."""
-        return sorted(self._files)
+        return list(self._files.values())
 
     def __len__(self) -> int:
         return len(self._files)
+
+    def __str__(self) -> str:
+        return "ImageFiles({} arxius PNG, {} afegits, {} eliminats)".format(
+            len(self._files), len(self._added), len(self._removed))

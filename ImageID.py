@@ -38,23 +38,38 @@ import cfg
 
 
 def canonical_file(file: str) -> str:
-    """Path relatiu a ROOT_DIR de l'arxiu.
+    """Path canònic (relatiu a ROOT_DIR, amb '/') d'un arxiu.
 
-    Si un path que ja era relatiu a ROOT_DIR es torna a passar per
-    cfg.get_canonical_pathfile() (p.ex. "x.png" -> "../../src/x.png"),
-    es recupera el path original desfent aquella conversió.
+    Accepta el path tal com el retorna ImageFiles (relatiu al directori de
+    treball o absolut), el path que ja és relatiu a ROOT_DIR, i també un path
+    relatiu a ROOT_DIR que s'ha tornat a passar per cfg.get_canonical_pathfile()
+    (p.ex. "x.png" -> "../x.png"). Si no és dins ROOT_DIR, es retorna igual.
     """
-    if not isinstance(file, str) or os.path.isabs(file) or not file.startswith(".."):
+    if not isinstance(file, str) or file == "":
         return file
-    root = os.path.abspath(cfg.ROOT_DIR)
-    if os.path.exists(os.path.join(root, file)):
-        return file
-    try:
-        original = os.path.relpath(os.path.join(root, file), os.getcwd())
-    except ValueError:
-        return file
-    if os.path.isfile(os.path.join(root, original)):
-        return original.replace(os.sep, "/")
+    roots = {os.path.abspath(cfg.ROOT_DIR), os.path.realpath(cfg.ROOT_DIR)}
+
+    # Ja és relatiu a ROOT_DIR
+    if not os.path.isabs(file):
+        for root in roots:
+            if os.path.exists(os.path.join(root, file)):
+                return os.path.normpath(file).replace(os.sep, "/")
+
+    # Path del disc (absolut o relatiu al directori de treball) dins ROOT_DIR
+    for full_path in (os.path.abspath(file), os.path.realpath(file)):
+        for root in roots:
+            if full_path.startswith(root + os.sep):
+                return os.path.relpath(full_path, root).replace(os.sep, "/")
+
+    # Path relatiu a ROOT_DIR canonicalitzat dues vegades
+    if file.startswith(".."):
+        root = os.path.abspath(cfg.ROOT_DIR)
+        try:
+            original = os.path.relpath(os.path.join(root, file), os.getcwd())
+        except ValueError:
+            return file
+        if os.path.isfile(os.path.join(root, original)):
+            return original.replace(os.sep, "/")
     return file
 
 
@@ -96,3 +111,6 @@ class ImageID:
 
     def __contains__(self, uuid: str) -> bool:
         return uuid in self._uuid_to_file
+
+    def __str__(self) -> str:
+        return "ImageID({} UUID actius)".format(len(self._uuid_to_file))

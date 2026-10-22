@@ -75,7 +75,7 @@ class ImageData:
     """Metadades de cada imatge, indexades pel seu UUID."""
 
     def __init__(self):
-        # UUID -> {"file": path relatiu, "dimensions": (w, h), <camp>: str, ...}
+        # UUID -> {"file": path de l'arxiu, "dimensions": (w, h), <camp>: str, ...}
         self._images = {}
 
     def add_image(self, uuid: str, file: str) -> None:
@@ -83,7 +83,7 @@ class ImageData:
         if uuid is None:
             return
         entry = {field: EMPTY for field in FIELDS}
-        entry["file"] = canonical_file(file)
+        entry["file"] = file
         entry["dimensions"] = (None, None)
         self._images[uuid] = entry
 
@@ -105,9 +105,10 @@ class ImageData:
         entry["dimensions"] = dimensions
 
     def _get(self, uuid: str, field: str) -> str:
+        """Valor del camp ("None" si és buit), o None si la imatge no existeix."""
         entry = self._images.get(uuid)
         if entry is None:
-            return EMPTY
+            return None
         return entry[field]
 
     def get_prompt(self, uuid: str) -> str:
@@ -137,15 +138,18 @@ class ImageData:
     def get_dimensions(self, uuid: str) -> tuple:
         entry = self._images.get(uuid)
         if entry is None:
-            return (None, None)
+            return None
         return entry["dimensions"]
 
-    def get_file(self, uuid: str) -> str:
-        """Path relatiu (respecte ROOT_DIR) de l'arxiu de la imatge, o None."""
+    def get_filename(self, uuid: str) -> str:
+        """Path de l'arxiu tal com es va passar a add_image(), o None."""
         entry = self._images.get(uuid)
         if entry is None:
             return None
         return entry["file"]
+
+    def get_file(self, uuid: str) -> str:
+        return self.get_filename(uuid)
 
     def get_full_path(self, uuid: str) -> str:
         """Path de l'arxiu físic al disc, o None si la imatge no existeix."""
@@ -166,6 +170,9 @@ class ImageData:
 
     def __iter__(self):
         return iter(self.get_uuids())
+
+    def __str__(self) -> str:
+        return "ImageData({} imatges)".format(len(self._images))
 
 
 PNG_SIGNATURE = b'\x89PNG\r\n\x1a\n'
@@ -237,6 +244,8 @@ def _parse_text_chunk(chunk_type: bytes, data: bytes, metadata: dict) -> None:
 
 def resolve_path(file: str) -> str:
     """Converteix un path relatiu a ROOT_DIR en el path de l'arxiu al disc."""
+    if not isinstance(file, str) or file == "":
+        return ""
     if os.path.isabs(file):
         return file
     full_path = os.path.join(cfg.get_root(), canonical_file(file))

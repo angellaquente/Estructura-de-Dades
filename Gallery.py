@@ -74,25 +74,33 @@ class Gallery:
         return self.gallery_name
 
     def load_file(self, file: str) -> None:
-        """Carrega la galeria d'un JSON. Les imatges fora de la col·lecció s'ignoren."""
+        """Carrega la galeria d'un JSON. Les imatges fora de la col·lecció s'ignoren.
+
+        El contingut anterior es descarta: si el JSON no es pot llegir, la
+        galeria queda buida.
+        """
+        self.gallery_name = ""
+        self.description = ""
+        self.created_date = ""
+        self.images = []
+
         path = file
-        if not os.path.isfile(path) and not os.path.isabs(file):
+        if isinstance(file, str) and not os.path.isfile(path) and not os.path.isabs(file):
             path = os.path.join(cfg.get_root(), file)
 
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-        except (OSError, ValueError) as e:
+        except (OSError, TypeError, ValueError) as e:
             print("ERROR: No es pot llegir la galeria [{}]: {}".format(file, e))
             return
-        if not isinstance(data, dict):
+        if not isinstance(data, dict) or not isinstance(data.get("images", []), list):
             print("ERROR: Format de galeria incorrecte [{}]".format(file))
             return
 
         self.gallery_name = str(data.get("gallery_name", ""))
         self.description = str(data.get("description", ""))
         self.created_date = str(data.get("created_date", ""))
-        self.images = []
         for image_file in data.get("images", []):
             uuid = self._find_uuid(image_file)
             if uuid is None:
@@ -142,3 +150,6 @@ class Gallery:
 
     def __iter__(self):
         return iter(list(self.images))
+
+    def __str__(self) -> str:
+        return "Gallery('{}', {} imatges)".format(self.gallery_name, len(self.images))

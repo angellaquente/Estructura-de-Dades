@@ -91,6 +91,9 @@ class SearchMetadata:
     def date(self, sub: str) -> list:
         return self._search("get_created_date", sub)
 
+    def generated(self, sub: str) -> list:
+        return self._search("get_generated", sub)
+
     def and_operator(self, list1: list, list2: list) -> list:
         """Intersecció sense duplicats, en l'ordre de list1."""
         in_list2 = set(list2)
@@ -111,3 +114,6 @@ class SearchMetadata:
                 seen.add(uuid)
                 result.append(uuid)
         return result
+
+    def __str__(self) -> str:
+        return "SearchMetadata({})".format(self._data)
