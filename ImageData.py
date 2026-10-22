@@ -68,33 +68,28 @@ from ImageID import canonical_file
 FIELDS = ("Prompt", "Seed", "CFG_Scale", "Steps", "Sampler", "Model",
           "Generated", "Created_Date")
 
-EMPTY = "None"
+EMPTY = "None"     # camp absent dins un PNG que s'ha pogut llegir
 
 
 class ImageData:
-    """Metadades de cada imatge, indexades pel seu UUID."""
+    """Metadades de cada imatge, indexades pel seu UUID.
+
+    Mentre les metadades no s'han llegit (o no s'han pogut llegir) els camps i
+    les dimensions valen None.
+    """
 
     def __init__(self):
         # UUID -> {"file": path de l'arxiu, "dimensions": (w, h), <camp>: str, ...}
         self._images = {}
 
     def add_image(self, uuid: str, file: str) -> None:
-        """Crea l'entrada de la imatge amb les metadades buides.
-
-        Només s'afegeixen imatges amb un arxiu existent al disc. Si la imatge
-        ja existeix amb el mateix arxiu, es conserven les metadades llegides.
-        """
-        if uuid is None:
+        """Crea l'entrada de la imatge amb les metadades buides (sense llegir el disc)."""
+        if not isinstance(uuid, str) or uuid == "" or not isinstance(file, str) or file == "":
+            print("ERROR: Imatge [{}] o arxiu [{}] no vàlids. No s'afegeix".format(uuid, file))
             return
-        if not os.path.isfile(resolve_path(file)):
-            print("ERROR: Arxiu [{}] inexistent! No s'afegeix la imatge {}".format(file, uuid))
-            return
-        current = self._images.get(uuid)
-        if current is not None and current["file"] == file:
-            return
-        entry = {field: EMPTY for field in FIELDS}
+        entry = {field: None for field in FIELDS}
         entry["file"] = file
-        entry["dimensions"] = (None, None)
+        entry["dimensions"] = None
         self._images[uuid] = entry
 
     def remove_image(self, uuid: str) -> None:
@@ -104,27 +99,23 @@ class ImageData:
     def load_metadata(self, uuid: str) -> None:
         """Llegeix (o torna a llegir) les metadades embegudes al PNG.
 
-        Si l'arxiu ja no existeix al disc, la imatge s'elimina de la col·lecció.
+        Si l'arxiu no es pot llegir, les metadades es queden com estaven.
         """
         entry = self._images.get(uuid)
         if entry is None:
             print("ERROR: Imatge {} inexistent!".format(uuid))
             return
 
-        path = self.get_full_path(uuid)
-        if not os.path.isfile(path):
-            print("ERROR: Arxiu [{}] inexistent! S'elimina la imatge {}".format(entry["file"], uuid))
-            self.remove_image(uuid)
+        metadata, dimensions = read_png_info(self.get_full_path(uuid))
+        if metadata is None:
             return
-
-        metadata, dimensions = read_png_info(path)
         for field in FIELDS:
             value = metadata.get(field)
             entry[field] = str(value) if value else EMPTY
         entry["dimensions"] = dimensions
 
     def _get(self, uuid: str, field: str) -> str:
-        """Valor del camp ("None" si és buit), o None si la imatge no existeix."""
+        """Valor del camp ("None" si el PNG no el té), o None si no s'ha llegit o la imatge no existeix."""
         entry = self._images.get(uuid)
         if entry is None:
             return None
@@ -205,7 +196,7 @@ def read_png_info(path: str) -> tuple:
     imatge) en lloc de llegir-los: és el que fa ràpida la càrrega de milers
     d'imatges.
 
-    Retorna (metadata: dict, (width, height)). Si hi ha error: ({}, (None, None)).
+    Retorna (metadata: dict, (width, height)). Si hi ha error: (None, (None, None)).
     """
     metadata = {}
     dimensions = (None, None)
@@ -213,7 +204,7 @@ def read_png_info(path: str) -> tuple:
         with open(path, 'rb') as f:
             if f.read(8) != PNG_SIGNATURE:
                 print("ERROR: {} no és un PNG vàlid".format(path))
-                return {}, (None, None)
+                return None, (None, None)
             while True:
                 header = f.read(8)
                 if len(header) < 8:
@@ -237,7 +228,7 @@ def read_png_info(path: str) -> tuple:
                     f.seek(length + 4, os.SEEK_CUR)     # dades + CRC
     except OSError as e:
         print("ERROR llegint {}: {}".format(path, e))
-        return {}, (None, None)
+        return None, (None, None)
     return metadata, dimensions
 
 

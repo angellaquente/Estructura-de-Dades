@@ -66,7 +66,7 @@ class ImageViewer:
             print("ERROR: Imatge {} inexistent!".format(uuid))
             return
 
-        width, height = data.get_dimensions(uuid)
+        width, height = data.get_dimensions(uuid) or (None, None)
         print("Visualitzant [{}]".format(data.get_filename(uuid)))
         print(" Dimensions: {}x{} pixels".format(width, height))
         print(" Prompt:     {}".format(data.get_prompt(uuid)))

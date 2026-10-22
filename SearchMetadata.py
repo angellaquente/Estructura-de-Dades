@@ -70,13 +70,20 @@ class SearchMetadata:
         return self._data
 
     def _search(self, field: str, sub) -> list:
-        """UUID de les imatges amb 'sub' dins el camp (case-sensitive)."""
+        """UUID de les imatges amb 'sub' dins el camp (case-sensitive).
+
+        Les imatges amb el camp sense llegir (None) no apareixen mai.
+        """
         if self._data is None or sub is None:
             return []
         sub = str(sub)
         getter = getattr(self._data, field)
-        return [uuid for uuid in self._data.get_uuids()
-                if str(getter(uuid)).find(sub) != -1]
+        result = []
+        for uuid in self._data.get_uuids():
+            value = getter(uuid)
+            if value is not None and str(value).find(sub) != -1:
+                result.append(uuid)
+        return result
 
     def __getattr__(self, name: str):
         """Cerca per qualsevol altre camp d'ImageData: search.<camp>(sub) usa get_<camp>()."""
