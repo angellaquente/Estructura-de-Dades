@@ -88,7 +88,7 @@ class ImageData:
             print("ERROR: Imatge [{}] o arxiu [{}] no vàlids. No s'afegeix".format(uuid, file))
             return
         entry = {field: None for field in FIELDS}
-        entry["file"] = file
+        entry["file"] = canonical_file(file)    # path relatiu a ROOT_DIR
         entry["dimensions"] = None
         self._images[uuid] = entry
 
