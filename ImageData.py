@@ -81,10 +81,13 @@ class ImageData:
     def add_image(self, uuid: str, file: str) -> None:
         """Crea l'entrada de la imatge amb les metadades buides.
 
-        Si la imatge ja existeix amb el mateix arxiu, es conserven les
-        metadades que ja s'han llegit.
+        Només s'afegeixen imatges amb un arxiu existent al disc. Si la imatge
+        ja existeix amb el mateix arxiu, es conserven les metadades llegides.
         """
         if uuid is None:
+            return
+        if not os.path.isfile(resolve_path(file)):
+            print("ERROR: Arxiu [{}] inexistent! No s'afegeix la imatge {}".format(file, uuid))
             return
         current = self._images.get(uuid)
         if current is not None and current["file"] == file:

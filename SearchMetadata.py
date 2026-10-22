@@ -86,7 +86,7 @@ class SearchMetadata:
         getter = "get_" + FIELD_ALIASES.get(name, name)
         if not hasattr(data, getter):
             raise AttributeError(name)
-        return lambda sub: self._search(getter, sub)
+        return lambda sub="", *args, **kwargs: self._search(getter, sub)
 
     def prompt(self, sub: str) -> list:
         return self._search("get_prompt", sub)
@@ -112,25 +112,26 @@ class SearchMetadata:
     def generated(self, sub: str) -> list:
         return self._search("get_generated", sub)
 
-    def and_operator(self, list1: list, list2: list) -> list:
-        """Intersecció sense duplicats, en l'ordre de list1."""
-        in_list2 = set(list2)
+    def and_operator(self, list1: list, list2: list = None, *others) -> list:
+        """Intersecció sense duplicats, en l'ordre de list1 (None = llista buida)."""
+        others = [set(l or []) for l in (list2,) + others]
         result = []
         seen = set()
-        for uuid in list1:
-            if uuid in in_list2 and uuid not in seen:
+        for uuid in (list1 or []):
+            if uuid not in seen and all(uuid in other for other in others):
                 seen.add(uuid)
                 result.append(uuid)
         return result
 
-    def or_operator(self, list1: list, list2: list) -> list:
-        """Unió sense duplicats: primer list1 i després la resta de list2."""
+    def or_operator(self, list1: list, list2: list = None, *others) -> list:
+        """Unió sense duplicats: primer list1 i després la resta (None = llista buida)."""
         result = []
         seen = set()
-        for uuid in list(list1) + list(list2):
-            if uuid not in seen:
-                seen.add(uuid)
-                result.append(uuid)
+        for current in (list1, list2) + others:
+            for uuid in (current or []):
+                if uuid not in seen:
+                    seen.add(uuid)
+                    result.append(uuid)
         return result
 
     def __str__(self) -> str:
