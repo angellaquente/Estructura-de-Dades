@@ -34,51 +34,34 @@ import cfg
 
 
 class ImageFiles:
-    """Representació a memòria dels arxius PNG presents al disc.
-
-    Cada arxiu s'identifica pel seu path relatiu a ROOT_DIR
-    (cfg.get_canonical_pathfile), però les llistes retornen el path tal com
-    s'ha trobat al disc (os.path.join del directori recorregut i el nom), de
-    manera que es pot obrir directament.
-    """
 
     def __init__(self):
-        self._files = {}        # path relatiu a ROOT_DIR -> path trobat al disc
-        self._added = []        # arxius nous respecte la lectura anterior
-        self._removed = []      # arxius desapareguts respecte la lectura anterior
+        self.fitxers = {}       # relatiu -> path al disc
+        self.afegits = []
+        self.eliminats = []
 
-    def reload_fs(self, path: str = None) -> None:
-        """Torna a llegir el disc a partir de 'path' i calcula els canvis."""
+    def reload_fs(self, path=None):
         if path is None:
             path = cfg.ROOT_DIR
+        trobats = {}
+        for carpeta, dirs, noms in os.walk(path):
+            dirs.sort()
+            for nom in sorted(noms):
+                if nom.lower().endswith(".png"):
+                    f = os.path.join(carpeta, nom)
+                    trobats[cfg.get_canonical_pathfile(f)] = f
+        self.afegits = [f for k, f in trobats.items() if k not in self.fitxers]
+        self.eliminats = [f for k, f in self.fitxers.items() if k not in trobats]
+        self.fitxers = trobats
 
-        found = {}
-        for root, dirs, files in os.walk(path):
-            dirs.sort()                     # recorregut determinista
-            for filename in sorted(files):
-                if filename.lower().endswith('.png'):
-                    file = os.path.join(root, filename)
-                    found[cfg.get_canonical_pathfile(file)] = file
+    def files_added(self):
+        return list(self.afegits)
 
-        self._added = [file for key, file in found.items() if key not in self._files]
-        self._removed = [file for key, file in self._files.items() if key not in found]
-        self._files = found
+    def files_removed(self):
+        return list(self.eliminats)
 
-    def files_added(self) -> list:
-        """Arxius afegits des de la darrera crida a reload_fs()."""
-        return list(self._added)
+    def __len__(self):
+        return len(self.fitxers)
 
-    def files_removed(self) -> list:
-        """Arxius eliminats des de la darrera crida a reload_fs()."""
-        return list(self._removed)
-
-    def get_files(self) -> list:
-        """Tots els arxius presents a la darrera lectura del disc."""
-        return list(self._files.values())
-
-    def __len__(self) -> int:
-        return len(self._files)
-
-    def __str__(self) -> str:
-        return "ImageFiles({} arxius PNG, {} afegits, {} eliminats)".format(
-            len(self._files), len(self._added), len(self._removed))
+    def __str__(self):
+        return "ImageFiles({} arxius)".format(len(self.fitxers))

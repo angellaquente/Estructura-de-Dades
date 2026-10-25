@@ -37,52 +37,27 @@ import os
 import cfg
 
 
-def canonical_file(file: str) -> str:
-    """Path canònic (relatiu a ROOT_DIR, amb '/') d'un arxiu.
-
-    Accepta el path tal com el retorna ImageFiles (relatiu al directori de
-    treball o absolut), el path que ja és relatiu a ROOT_DIR, i també un path
-    relatiu a ROOT_DIR que s'ha tornat a passar per cfg.get_canonical_pathfile()
-    (p.ex. "x.png" -> "../x.png"). Si no és dins ROOT_DIR, es retorna igual.
-    """
+def path_relatiu(file):
+    """Path relatiu a ROOT_DIR."""
     if not isinstance(file, str) or file == "":
         return file
-    roots = {os.path.abspath(cfg.ROOT_DIR), os.path.realpath(cfg.ROOT_DIR)}
-
-    # Ja és relatiu a ROOT_DIR
-    if not os.path.isabs(file):
-        for root in roots:
-            if os.path.exists(os.path.join(root, file)):
-                return os.path.normpath(file).replace(os.sep, "/")
-
-    # Path del disc (absolut o relatiu al directori de treball) dins ROOT_DIR
-    for full_path in (os.path.abspath(file), os.path.realpath(file)):
-        for root in roots:
-            if full_path.startswith(root + os.sep):
-                return os.path.relpath(full_path, root).replace(os.sep, "/")
-
-    # Path relatiu a ROOT_DIR canonicalitzat dues vegades
-    if file.startswith(".."):
-        root = os.path.abspath(cfg.ROOT_DIR)
-        try:
-            original = os.path.relpath(os.path.join(root, file), os.getcwd())
-        except ValueError:
-            return file
-        if os.path.isfile(os.path.join(root, original)):
-            return original.replace(os.sep, "/")
+    root = os.path.abspath(cfg.ROOT_DIR)
+    if not os.path.isabs(file) and os.path.exists(os.path.join(root, file)):
+        return os.path.normpath(file).replace(os.sep, "/")
+    ple = os.path.abspath(file)
+    if ple.startswith(root + os.sep):
+        return os.path.relpath(ple, root).replace(os.sep, "/")
     return file
 
 
 class ImageID:
-    """Registre dels UUID actius i de l'arxiu al qual pertany cadascun."""
 
     def __init__(self):
-        self._file_to_uuid = {}     # path relatiu -> UUID
-        self._uuid_to_file = {}     # UUID -> path relatiu
+        self._file_to_uuid = {}
+        self._uuid_to_file = {}
 
-    def generate_uuid(self, file: str) -> str:
-        """Genera i registra el UUID de l'arxiu. Retorna None si ja està en ús."""
-        file = canonical_file(file)
+    def generate_uuid(self, file):
+        file = path_relatiu(file)
         uuid = str(cfg.get_uuid(file))
         if uuid in self._uuid_to_file:
             print("WARNING: UUID {} ja utilitzat per [{}]. L'arxiu [{}] no s'utilitzarà."
@@ -92,25 +67,19 @@ class ImageID:
         self._file_to_uuid[file] = uuid
         return uuid
 
-    def get_uuid(self, file: str) -> str:
-        """UUID actiu de l'arxiu, o None si no s'ha generat (o s'ha esborrat)."""
-        return self._file_to_uuid.get(canonical_file(file))
+    def get_uuid(self, file):
+        return self._file_to_uuid.get(path_relatiu(file))
 
-    def remove_uuid(self, uuid: str) -> None:
-        """Allibera el UUID perquè es pugui tornar a generar."""
+    def remove_uuid(self, uuid):
         file = self._uuid_to_file.pop(uuid, None)
-        if file is not None and self._file_to_uuid.get(file) == uuid:
-            del self._file_to_uuid[file]
+        if file is not None:
+            self._file_to_uuid.pop(file, None)
 
-    def get_file(self, uuid: str) -> str:
-        """Path relatiu de l'arxiu associat al UUID, o None."""
-        return self._uuid_to_file.get(uuid)
-
-    def __len__(self) -> int:
+    def __len__(self):
         return len(self._uuid_to_file)
 
-    def __contains__(self, uuid: str) -> bool:
+    def __contains__(self, uuid):
         return uuid in self._uuid_to_file
 
-    def __str__(self) -> str:
-        return "ImageID({} UUID actius)".format(len(self._uuid_to_file))
+    def __str__(self):
+        return "ImageID({} UUID)".format(len(self._uuid_to_file))

@@ -61,221 +61,143 @@ Notes:
 import os
 
 import cfg
-from ImageID import canonical_file
+from ImageID import path_relatiu
 
-
-# Camps de metadades obligatoris (nom del text chunk dins el PNG)
-FIELDS = ("Prompt", "Seed", "CFG_Scale", "Steps", "Sampler", "Model",
-          "Generated", "Created_Date")
-
-EMPTY = "None"     # camp absent dins un PNG que s'ha pogut llegir
+CAMPS = ("Prompt", "Seed", "CFG_Scale", "Steps", "Sampler", "Model", "Generated", "Created_Date")
 
 
 class ImageData:
-    """Metadades de cada imatge, indexades pel seu UUID.
-
-    Mentre les metadades no s'han llegit els camps i les dimensions valen None.
-    Una imatge només existeix mentre el seu arxiu existeix: si en llegir les
-    metadades l'arxiu ja no és al disc, la imatge s'elimina de la col·lecció.
-    """
 
     def __init__(self):
-        # UUID -> {"file": path de l'arxiu, "dimensions": (w, h), <camp>: str, ...}
-        self._images = {}
+        self.imatges = {}       # uuid -> dades
 
-    def add_image(self, uuid: str, file: str) -> None:
-        """Crea l'entrada de la imatge amb les metadades buides (sense llegir el disc).
-
-        El UUID és la clau i ha de ser un string no buit. El path es guarda tal
-        qual: l'arxiu no es comprova fins que es crida load_metadata().
-        """
+    def add_image(self, uuid, file):
         if not isinstance(uuid, str) or uuid == "" or not isinstance(file, str):
             print("ERROR: Imatge [{}] o arxiu [{}] no vàlids. No s'afegeix".format(uuid, file))
             return
-        entry = {field: None for field in FIELDS}
-        entry["file"] = canonical_file(file)    # path relatiu a ROOT_DIR
-        entry["dimensions"] = None
-        self._images[uuid] = entry
+        dades = {camp: None for camp in CAMPS}
+        dades["file"] = path_relatiu(file)
+        dades["dimensions"] = None
+        self.imatges[uuid] = dades
 
-    def remove_image(self, uuid: str) -> None:
-        """Elimina la imatge i les seves metadades (si existeix)."""
-        self._images.pop(uuid, None)
+    def remove_image(self, uuid):
+        self.imatges.pop(uuid, None)
 
-    def load_metadata(self, uuid: str) -> None:
-        """Llegeix (o torna a llegir) les metadades embegudes al PNG.
-
-        Si l'arxiu no existeix (imatge falsa o arxiu esborrat del disc), la
-        imatge s'elimina de la col·lecció i es llança FileNotFoundError. Si existeix però no és un PNG
-        vàlid, tots els camps valen "None" i les dimensions (None, None).
-        """
-        entry = self._images.get(uuid)
-        if entry is None:
+    def load_metadata(self, uuid):
+        dades = self.imatges.get(uuid)
+        if dades is None:
             print("ERROR: Imatge {} inexistent!".format(uuid))
             return
-
-        path = self.get_full_path(uuid)
+        path = path_disc(dades["file"])
         if not os.path.isfile(path):
-            print("ERROR: Arxiu [{}] inexistent! La imatge {} s'elimina de la col·lecció"
-                  .format(entry["file"], uuid))
+            print("ERROR: Arxiu [{}] inexistent! S'elimina la imatge {}".format(dades["file"], uuid))
             self.remove_image(uuid)
-            raise FileNotFoundError("Arxiu inexistent: {}".format(path))
+            raise FileNotFoundError(path)
+        meta, mida = llegir_png(path)
+        for camp in CAMPS:
+            valor = meta.get(camp) if meta is not None else None
+            dades[camp] = str(valor) if valor else "None"
+        dades["dimensions"] = mida
 
-        metadata, dimensions = read_png_info(path)
-        if metadata is None:
-            for field in FIELDS:
-                entry[field] = EMPTY
-            entry["dimensions"] = (None, None)
-            return
-        for field in FIELDS:
-            value = metadata.get(field)
-            entry[field] = str(value) if value else EMPTY
-        entry["dimensions"] = dimensions
-
-    def _get(self, uuid: str, field: str) -> str:
-        """Valor del camp ("None" si el PNG no el té), o None si no s'ha llegit o la imatge no existeix."""
-        entry = self._images.get(uuid)
-        if entry is None:
+    def _camp(self, uuid, camp):
+        dades = self.imatges.get(uuid)
+        if dades is None:
             return None
-        return entry[field]
+        return dades[camp]
 
-    def get_prompt(self, uuid: str) -> str:
-        return self._get(uuid, "Prompt")
+    def get_prompt(self, uuid):
+        return self._camp(uuid, "Prompt")
 
-    def get_model(self, uuid: str) -> str:
-        return self._get(uuid, "Model")
+    def get_model(self, uuid):
+        return self._camp(uuid, "Model")
 
-    def get_seed(self, uuid: str) -> str:
-        return self._get(uuid, "Seed")
+    def get_seed(self, uuid):
+        return self._camp(uuid, "Seed")
 
-    def get_cfg_scale(self, uuid: str) -> str:
-        return self._get(uuid, "CFG_Scale")
+    def get_cfg_scale(self, uuid):
+        return self._camp(uuid, "CFG_Scale")
 
-    def get_steps(self, uuid: str) -> str:
-        return self._get(uuid, "Steps")
+    def get_steps(self, uuid):
+        return self._camp(uuid, "Steps")
 
-    def get_sampler(self, uuid: str) -> str:
-        return self._get(uuid, "Sampler")
+    def get_sampler(self, uuid):
+        return self._camp(uuid, "Sampler")
 
-    def get_generated(self, uuid: str) -> str:
-        return self._get(uuid, "Generated")
+    def get_generated(self, uuid):
+        return self._camp(uuid, "Generated")
 
-    def get_created_date(self, uuid: str) -> str:
-        return self._get(uuid, "Created_Date")
+    def get_created_date(self, uuid):
+        return self._camp(uuid, "Created_Date")
 
-    def get_dimensions(self, uuid: str) -> tuple:
-        entry = self._images.get(uuid)
-        if entry is None:
-            return None
-        return entry["dimensions"]
+    def get_dimensions(self, uuid):
+        return self._camp(uuid, "dimensions")
 
-    def get_filename(self, uuid: str) -> str:
-        """Path de l'arxiu tal com es va passar a add_image(), o None."""
-        entry = self._images.get(uuid)
-        if entry is None:
-            return None
-        return entry["file"]
+    def get_filename(self, uuid):
+        return self._camp(uuid, "file")
 
-    def get_file(self, uuid: str) -> str:
-        return self.get_filename(uuid)
+    def get_uuids(self):
+        return list(self.imatges)
 
-    def get_full_path(self, uuid: str) -> str:
-        """Path de l'arxiu físic al disc, o None si la imatge no existeix."""
-        file = self.get_file(uuid)
-        if file is None:
-            return None
-        return resolve_path(file)
+    def __len__(self):
+        return len(self.imatges)
 
-    def get_uuids(self) -> list:
-        """Llista dels UUID de totes les imatges (en ordre d'inserció)."""
-        return list(self._images)
-
-    def __len__(self) -> int:
-        return len(self._images)
-
-    def __contains__(self, uuid: str) -> bool:
-        return uuid in self._images
+    def __contains__(self, uuid):
+        return uuid in self.imatges
 
     def __iter__(self):
         return iter(self.get_uuids())
 
-    def __str__(self) -> str:
-        return "ImageData({} imatges)".format(len(self._images))
+    def __str__(self):
+        return "ImageData({} imatges)".format(len(self.imatges))
 
 
-PNG_SIGNATURE = b'\x89PNG\r\n\x1a\n'
-
-
-def read_png_info(path: str) -> tuple:
-    """Llegeix els text chunks i les dimensions (IHDR) d'un PNG.
-
-    Interpreta els chunks igual que cfg.read_png_metadata() (tEXt i iTXt sense
-    comprimir), però salta amb seek() la resta de chunks (les dades de la
-    imatge) en lloc de llegir-los: és el que fa ràpida la càrrega de milers
-    d'imatges.
-
-    Retorna (metadata: dict, (width, height)). Si hi ha error: (None, (None, None)).
-    """
-    metadata = {}
-    dimensions = (None, None)
-    try:
-        with open(path, 'rb') as f:
-            if f.read(8) != PNG_SIGNATURE:
-                print("ERROR: {} no és un PNG vàlid".format(path))
-                return None, (None, None)
-            while True:
-                header = f.read(8)
-                if len(header) < 8:
-                    break
-                length = int.from_bytes(header[:4], byteorder='big')
-                chunk_type = header[4:]
-
-                if chunk_type in (b'IHDR', b'tEXt', b'iTXt'):
-                    data = f.read(length)
-                    if len(data) < length:
-                        break
-                    f.seek(4, os.SEEK_CUR)      # CRC
-                    if chunk_type == b'IHDR':
-                        dimensions = (int.from_bytes(data[0:4], byteorder='big'),
-                                      int.from_bytes(data[4:8], byteorder='big'))
-                    else:
-                        _parse_text_chunk(chunk_type, data, metadata)
-                elif chunk_type == b'IEND':
-                    break
-                else:
-                    f.seek(length + 4, os.SEEK_CUR)     # dades + CRC
-    except OSError as e:
-        print("ERROR llegint {}: {}".format(path, e))
-        return None, (None, None)
-    return metadata, dimensions
-
-
-def _parse_text_chunk(chunk_type: bytes, data: bytes, metadata: dict) -> None:
-    """Afegeix a 'metadata' el parell keyword/text d'un chunk tEXt o iTXt."""
-    try:
-        null_pos = data.index(b'\x00')
-        keyword = data[:null_pos].decode('latin-1')
-        rest = data[null_pos + 1:]
-        if chunk_type == b'tEXt':
-            metadata[keyword] = rest.decode('latin-1')
-            return
-        # iTXt: compression_flag, compression_method, language\0, translated\0, text
-        if len(rest) < 2 or rest[0] != 0:
-            return      # text comprimit: no el processem (igual que cfg)
-        rest = rest[2:]
-        rest = rest[rest.index(b'\x00') + 1:]
-        rest = rest[rest.index(b'\x00') + 1:]
-        metadata[keyword] = rest.decode('utf-8', errors='ignore')
-    except (ValueError, UnicodeDecodeError):
-        pass
-
-
-def resolve_path(file: str) -> str:
-    """Converteix un path relatiu a ROOT_DIR en el path de l'arxiu al disc."""
-    if not isinstance(file, str) or file == "":
+def path_disc(file):
+    """Path real de l'arxiu."""
+    if not file:
         return ""
     if os.path.isabs(file):
         return file
-    full_path = os.path.join(cfg.get_root(), canonical_file(file))
-    if not os.path.isfile(full_path) and os.path.isfile(file):
-        return file     # ja era un path vàlid des del directori actual
-    return full_path
+    p = os.path.join(cfg.get_root(), path_relatiu(file))
+    if not os.path.isfile(p) and os.path.isfile(file):
+        return file
+    return p
+
+
+def llegir_png(path):
+    """Text chunks i mida d'un PNG."""
+    meta = {}
+    mida = (None, None)
+    try:
+        with open(path, "rb") as f:
+            if f.read(8) != b"\x89PNG\r\n\x1a\n":
+                print("ERROR: {} no és un PNG vàlid".format(path))
+                return None, (None, None)
+            while True:
+                cap = f.read(8)
+                if len(cap) < 8:
+                    break
+                n = int.from_bytes(cap[:4], "big")
+                tipus = cap[4:]
+                if tipus == b"IEND":
+                    break
+                if tipus not in (b"IHDR", b"tEXt", b"iTXt"):
+                    f.seek(n + 4, os.SEEK_CUR)      # salta la imatge
+                    continue
+                dades = f.read(n)
+                if len(dades) < n:
+                    break
+                f.seek(4, os.SEEK_CUR)
+                if tipus == b"IHDR":
+                    mida = (int.from_bytes(dades[0:4], "big"), int.from_bytes(dades[4:8], "big"))
+                elif b"\x00" in dades:
+                    clau, text = dades.split(b"\x00", 1)
+                    if tipus == b"tEXt":
+                        meta[clau.decode("latin-1")] = text.decode("latin-1")
+                    elif len(text) > 2 and text[0] == 0:
+                        parts = text[2:].split(b"\x00", 2)      # iTXt sense comprimir
+                        if len(parts) == 3:
+                            meta[clau.decode("latin-1")] = parts[2].decode("utf-8", errors="ignore")
+    except OSError as e:
+        print("ERROR llegint {}: {}".format(path, e))
+        return None, (None, None)
+    return meta, mida

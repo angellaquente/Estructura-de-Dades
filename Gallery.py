@@ -56,45 +56,35 @@ import cfg
 
 
 class Gallery:
-    """Llista ordenada d'imatges (UUID) amb el nom, descripció i data de la galeria."""
 
-    def __init__(self, image_id=None, image_viewer=None, gallery_name: str = ""):
-        # Acceptem els dos objectes en qualsevol ordre
-        if hasattr(image_id, "show_image") and not hasattr(image_id, "get_uuid"):
-            image_id, image_viewer = image_viewer, image_id
-        self._ids = image_id            # ImageID: path relatiu -> UUID
-        self._viewer = image_viewer     # ImageViewer: visualització
+    def __init__(self, image_id=None, image_viewer=None, gallery_name=""):
+        self.image_id = image_id
+        self.image_viewer = image_viewer
         self.gallery_name = gallery_name if isinstance(gallery_name, str) else ""
         self.description = ""
         self.created_date = ""
-        self.images = []                # UUID de les imatges, en ordre
+        self.images = []        # uuids en ordre
 
     @property
-    def name(self) -> str:
+    def name(self):
         return self.gallery_name
 
     @name.setter
-    def name(self, value: str) -> None:
+    def name(self, value):
         self.gallery_name = "" if value is None else str(value)
 
-    def load_file(self, file: str) -> None:
-        """Carrega la galeria d'un JSON. Les imatges fora de la col·lecció s'ignoren.
-
-        El contingut anterior es descarta: si el JSON no es pot llegir, la
-        galeria queda buida (i si l'arxiu no existeix es llança FileNotFoundError).
-        """
+    def load_file(self, file):
         self.gallery_name = ""
         self.description = ""
         self.created_date = ""
         self.images = []
 
         path = file
-        if isinstance(file, str) and not os.path.isfile(path) and not os.path.isabs(file):
+        if isinstance(file, str) and not os.path.isfile(file) and not os.path.isabs(file):
             path = os.path.join(cfg.get_root(), file)
-
         if isinstance(path, str) and path != "" and not os.path.exists(path):
             print("ERROR: Galeria [{}] inexistent!".format(file))
-            raise FileNotFoundError("Galeria inexistent: {}".format(path))
+            raise FileNotFoundError(path)
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -108,55 +98,40 @@ class Gallery:
         self.gallery_name = str(data.get("gallery_name", ""))
         self.description = str(data.get("description", ""))
         self.created_date = str(data.get("created_date", ""))
-        for image_file in data.get("images", []):
-            uuid = self._find_uuid(image_file)
+        for img in data.get("images", []):
+            uuid = None
+            if self.image_id is not None and isinstance(img, str):
+                uuid = self.image_id.get_uuid(img)
             if uuid is None:
-                print("WARNING: La imatge [{}] no és a la col·lecció. S'ignora."
-                      .format(image_file))
-                continue
-            self.images.append(uuid)
+                print("WARNING: La imatge [{}] no és a la col·lecció. S'ignora.".format(img))
+            else:
+                self.images.append(uuid)
 
-    def _find_uuid(self, image_file) -> str:
-        """UUID d'un path del JSON, acceptant diferents formats del path."""
-        if self._ids is None or not isinstance(image_file, str):
-            return None
-        candidates = [image_file, os.path.normpath(image_file).replace(os.sep, "/")]
-        try:
-            candidates.append(cfg.get_canonical_pathfile(image_file))
-        except ValueError:
-            pass
-        for candidate in candidates:
-            uuid = self._ids.get_uuid(candidate)
-            if uuid is not None:
-                return uuid
-        return None
-
-    def show(self) -> None:
-        """Visualitza en ordre totes les imatges de la galeria."""
-        if self._viewer is None:
+    def show(self):
+        if self.image_viewer is None:
             print("ERROR: Galeria sense visualitzador!")
             return
         print("Galeria [{}]: {} imatges".format(self.gallery_name, len(self.images)))
         for uuid in list(self.images):
-            self._viewer.show_image(uuid, cfg.DISPLAY_MODE)
+            self.image_viewer.show_image(uuid, cfg.DISPLAY_MODE)
 
-    def add_image_at_end(self, uuid: str) -> None:
+    def add_image_at_end(self, uuid):
         if uuid is not None:
             self.images.append(uuid)
 
-    def remove_first_image(self) -> None:
+    def remove_first_image(self):
         if self.images:
             self.images.pop(0)
 
-    def remove_last_image(self) -> None:
+    def remove_last_image(self):
         if self.images:
             self.images.pop()
 
-    def __len__(self) -> int:
+    def __len__(self):
         return len(self.images)
 
     def __iter__(self):
         return iter(list(self.images))
 
-    def __str__(self) -> str:
+    def __str__(self):
         return "Gallery('{}', {} imatges)".format(self.gallery_name, len(self.images))
