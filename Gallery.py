@@ -58,9 +58,9 @@ import cfg
 class Gallery:
 
     def __init__(self, image_id=None, image_viewer=None, gallery_name=""):
-        self.image_id = image_id
-        self.image_viewer = image_viewer
-        self.gallery_name = gallery_name if isinstance(gallery_name, str) else ""
+        self.image_id =image_id
+        self.image_viewer= image_viewer
+        self.gallery_name= gallery_name if isinstance(gallery_name, str) else ""
         self.description = ""
         self.created_date = ""
         self.images = []        # uuids en ordre
@@ -71,15 +71,15 @@ class Gallery:
 
     @name.setter
     def name(self, value):
-        self.gallery_name = "" if value is None else str(value)
+        self.gallery_name ="" if value is None else str(value)
 
     def load_file(self, file):
-        self.gallery_name = ""
+        self.gallery_name= ""
         self.description = ""
-        self.created_date = ""
-        self.images = []
+        self.created_date= ""
+        self.images= []
 
-        path = file
+        path =file
         if isinstance(file, str) and not os.path.isfile(file) and not os.path.isabs(file):
             path = os.path.join(cfg.get_root(), file)
         if isinstance(path, str) and path != "" and not os.path.exists(path):
@@ -122,16 +122,14 @@ class Gallery:
     def remove_first_image(self):
         if self.images:
             self.images.pop(0)
-
     def remove_last_image(self):
         if self.images:
             self.images.pop()
 
     def __len__(self):
         return len(self.images)
-
     def __iter__(self):
         return iter(list(self.images))
 
     def __str__(self):
-        return "Gallery('{}', {} imatges)".format(self.gallery_name, len(self.images))
+        return "Gallery('{}', {} imatges)".format(self.gallery_name,len(self.images))
