@@ -64,17 +64,17 @@ class ImageID:
                   .format(uuid, self._uuid_to_file[uuid], file))
             return None
         self._uuid_to_file[uuid] = file
-        self._file_to_uuid[file] = uuid
+        self._file_to_uuid[file]= uuid
         return uuid
 
     def get_uuid(self, file):
         return self._file_to_uuid.get(path_relatiu(file))
-
     def remove_uuid(self, uuid):
         file = self._uuid_to_file.pop(uuid, None)
         if file is not None:
             self._file_to_uuid.pop(file, None)
 
+    
     def __len__(self):
         return len(self._uuid_to_file)
 
