@@ -69,14 +69,13 @@ CAMPS = ("Prompt", "Seed", "CFG_Scale", "Steps", "Sampler", "Model", "Generated"
 class ImageData:
 
     def __init__(self):
-        self.imatges = {}       # uuid -> dades
-
+        self.imatges = {}       # uuid-> dades
     def add_image(self, uuid, file):
         if not isinstance(uuid, str) or uuid == "" or not isinstance(file, str):
             print("ERROR: Imatge [{}] o arxiu [{}] no vàlids. No s'afegeix".format(uuid, file))
             return
-        dades = {camp: None for camp in CAMPS}
-        dades["file"] = path_relatiu(file)
+        dades= {camp: None for camp in CAMPS}
+        dades["file"] =path_relatiu(file)
         dades["dimensions"] = None
         self.imatges[uuid] = dades
 
@@ -88,7 +87,7 @@ class ImageData:
         if dades is None:
             print("ERROR: Imatge {} inexistent!".format(uuid))
             return
-        path = path_disc(dades["file"])
+        path= path_disc(dades["file"])
         if not os.path.isfile(path):
             print("ERROR: Arxiu [{}] inexistent! S'elimina la imatge {}".format(dades["file"], uuid))
             self.remove_image(uuid)
@@ -110,13 +109,14 @@ class ImageData:
 
     def get_model(self, uuid):
         return self._camp(uuid, "Model")
-
+        
     def get_seed(self, uuid):
         return self._camp(uuid, "Seed")
 
+    
     def get_cfg_scale(self, uuid):
         return self._camp(uuid, "CFG_Scale")
-
+        
     def get_steps(self, uuid):
         return self._camp(uuid, "Steps")
 
@@ -150,7 +150,6 @@ class ImageData:
     def __str__(self):
         return "ImageData({} imatges)".format(len(self.imatges))
 
-
 def path_disc(file):
     """Path real de l'arxiu."""
     if not file:
@@ -165,8 +164,8 @@ def path_disc(file):
 
 def llegir_png(path):
     """Text chunks i mida d'un PNG."""
-    meta = {}
-    mida = (None, None)
+    meta ={}
+    mida= (None, None)
     try:
         with open(path, "rb") as f:
             if f.read(8) != b"\x89PNG\r\n\x1a\n":
