@@ -98,8 +98,8 @@ class SearchMetadata:
         return self._buscar("get_dimensions", sub)
 
     def and_operator(self, list1, list2=None, *altres):
-        conjunts = [set(l or []) for l in (list2,) + altres]
-        res = []
+        conjunts= [set(l or []) for l in (list2,) + altres]
+        res= []
         vistos = set()
         for uuid in list1 or []:
             if uuid not in vistos and all(uuid in c for c in conjunts):
@@ -107,9 +107,10 @@ class SearchMetadata:
                 res.append(uuid)
         return res
 
+    
     def or_operator(self, list1, list2=None, *altres):
-        res = []
-        vistos = set()
+        res= []
+        vistos =set()
         for llista in (list1, list2) + altres:
             for uuid in llista or []:
                 if uuid not in vistos:
