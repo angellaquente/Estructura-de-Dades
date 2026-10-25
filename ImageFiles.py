@@ -36,10 +36,11 @@ import cfg
 class ImageFiles:
 
     def __init__(self):
-        self.fitxers = {}       # relatiu -> path al disc
-        self.afegits = []
+        self.fitxers = {}       # relatiu ->path al disc
+        self.afegits= []
         self.eliminats = []
 
+    
     def reload_fs(self, path=None):
         if path is None:
             path = cfg.ROOT_DIR
@@ -56,7 +57,6 @@ class ImageFiles:
 
     def files_added(self):
         return list(self.afegits)
-
     def files_removed(self):
         return list(self.eliminats)
 
