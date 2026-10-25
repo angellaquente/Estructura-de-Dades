@@ -48,7 +48,6 @@ Notes:
 import os
 import subprocess
 import sys
-
 import cfg
 from ImageData import path_disc
 
@@ -79,7 +78,6 @@ class ImageViewer:
 
     def show_file(self, file):
         self._obrir(file)
-
     def _obrir(self, file):
         path = path_disc(file)
         if not path or not os.path.isfile(path):
@@ -99,7 +97,7 @@ class ImageViewer:
 
     def show_image(self, uuid, mode=None):
         if mode is None:
-            mode = cfg.DISPLAY_MODE
+            mode =cfg.DISPLAY_MODE
         if mode < 2:
             self.print_image(uuid)
         if mode > 0 and self.image_data is not None:
