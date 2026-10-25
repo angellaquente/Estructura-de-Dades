@@ -74,8 +74,9 @@ EMPTY = "None"     # camp absent dins un PNG que s'ha pogut llegir
 class ImageData:
     """Metadades de cada imatge, indexades pel seu UUID.
 
-    Mentre les metadades no s'han llegit (o no s'han pogut llegir) els camps i
-    les dimensions valen None.
+    Mentre les metadades no s'han llegit els camps i les dimensions valen None.
+    Una imatge només existeix mentre el seu arxiu existeix: si en llegir les
+    metadades l'arxiu ja no és al disc, la imatge s'elimina de la col·lecció.
     """
 
     def __init__(self):
@@ -83,8 +84,12 @@ class ImageData:
         self._images = {}
 
     def add_image(self, uuid: str, file: str) -> None:
-        """Crea l'entrada de la imatge amb les metadades buides (sense llegir el disc)."""
-        if not isinstance(uuid, str) or uuid == "" or not isinstance(file, str) or file == "":
+        """Crea l'entrada de la imatge amb les metadades buides (sense llegir el disc).
+
+        El UUID és la clau i ha de ser un string no buit. El path es guarda tal
+        qual: l'arxiu no es comprova fins que es crida load_metadata().
+        """
+        if not isinstance(uuid, str) or uuid == "" or not isinstance(file, str):
             print("ERROR: Imatge [{}] o arxiu [{}] no vàlids. No s'afegeix".format(uuid, file))
             return
         entry = {field: None for field in FIELDS}
@@ -99,19 +104,27 @@ class ImageData:
     def load_metadata(self, uuid: str) -> None:
         """Llegeix (o torna a llegir) les metadades embegudes al PNG.
 
-        Si l'arxiu no es pot llegir, tots els camps valen "None" i les
-        dimensions None.
+        Si l'arxiu no existeix (imatge falsa o arxiu esborrat del disc), la
+        imatge s'elimina de la col·lecció i es llança FileNotFoundError. Si existeix però no és un PNG
+        vàlid, tots els camps valen "None" i les dimensions (None, None).
         """
         entry = self._images.get(uuid)
         if entry is None:
             print("ERROR: Imatge {} inexistent!".format(uuid))
             return
 
-        metadata, dimensions = read_png_info(self.get_full_path(uuid))
+        path = self.get_full_path(uuid)
+        if not os.path.isfile(path):
+            print("ERROR: Arxiu [{}] inexistent! La imatge {} s'elimina de la col·lecció"
+                  .format(entry["file"], uuid))
+            self.remove_image(uuid)
+            raise FileNotFoundError("Arxiu inexistent: {}".format(path))
+
+        metadata, dimensions = read_png_info(path)
         if metadata is None:
             for field in FIELDS:
                 entry[field] = EMPTY
-            entry["dimensions"] = None
+            entry["dimensions"] = (None, None)
             return
         for field in FIELDS:
             value = metadata.get(field)

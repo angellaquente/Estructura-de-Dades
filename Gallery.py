@@ -58,13 +58,13 @@ import cfg
 class Gallery:
     """Llista ordenada d'imatges (UUID) amb el nom, descripció i data de la galeria."""
 
-    def __init__(self, image_id=None, image_viewer=None):
+    def __init__(self, image_id=None, image_viewer=None, gallery_name: str = ""):
         # Acceptem els dos objectes en qualsevol ordre
         if hasattr(image_id, "show_image") and not hasattr(image_id, "get_uuid"):
             image_id, image_viewer = image_viewer, image_id
         self._ids = image_id            # ImageID: path relatiu -> UUID
         self._viewer = image_viewer     # ImageViewer: visualització
-        self.gallery_name = ""
+        self.gallery_name = gallery_name if isinstance(gallery_name, str) else ""
         self.description = ""
         self.created_date = ""
         self.images = []                # UUID de les imatges, en ordre
@@ -73,11 +73,15 @@ class Gallery:
     def name(self) -> str:
         return self.gallery_name
 
+    @name.setter
+    def name(self, value: str) -> None:
+        self.gallery_name = "" if value is None else str(value)
+
     def load_file(self, file: str) -> None:
         """Carrega la galeria d'un JSON. Les imatges fora de la col·lecció s'ignoren.
 
         El contingut anterior es descarta: si el JSON no es pot llegir, la
-        galeria queda buida.
+        galeria queda buida (i si l'arxiu no existeix es llança FileNotFoundError).
         """
         self.gallery_name = ""
         self.description = ""
@@ -88,6 +92,9 @@ class Gallery:
         if isinstance(file, str) and not os.path.isfile(path) and not os.path.isabs(file):
             path = os.path.join(cfg.get_root(), file)
 
+        if isinstance(path, str) and path != "" and not os.path.exists(path):
+            print("ERROR: Galeria [{}] inexistent!".format(file))
+            raise FileNotFoundError("Galeria inexistent: {}".format(path))
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
